@@ -1,125 +1,89 @@
-//
-//  GameScene.swift
-//  SpaceGame Shared
-//
-//  Created by Rafael Niebles on 10/26/24.
-//
-
 import SpriteKit
+import GameplayKit;
 
-class GameScene: SKScene {
+class GameScene: SKScene, SKPhysicsContactDelegate {
     
+    var starfield: SKEmitterNode!
+    var player: SKSpriteNode!
     
-    fileprivate var label : SKLabelNode?
-    fileprivate var spinnyNode : SKShapeNode?
-
-    
-    class func newGameScene() -> GameScene {
-        // Load 'GameScene.sks' as an SKScene.
-        guard let scene = SKScene(fileNamed: "GameScene") as? GameScene else {
-            print("Failed to load GameScene.sks")
-            abort()
+    var scoreLabel: SKLabelNode!
+    var score: Int = 0 {
+        // Call this when the value is set
+        // What an awesome fucking feature
+        didSet {
+            scoreLabel.text = "Score: \(score)"
         }
-        
-        // Set the scale mode to scale to fit the window
-        scene.scaleMode = .aspectFill
-        
-        return scene
     }
     
-    func setUpScene() {
-        // Get label node from scene and store it for use later
-        self.label = self.childNode(withName: "//helloLabel") as? SKLabelNode
-        if let label = self.label {
-            label.alpha = 0.0
-            label.run(SKAction.fadeIn(withDuration: 2.0))
-        }
-        
-        // Create shape node to use during mouse interaction
-        let w = (self.size.width + self.size.height) * 0.05
-        self.spinnyNode = SKShapeNode.init(rectOf: CGSize.init(width: w, height: w), cornerRadius: w * 0.3)
-        
-        if let spinnyNode = self.spinnyNode {
-            spinnyNode.lineWidth = 4.0
-            spinnyNode.run(SKAction.repeatForever(SKAction.rotate(byAngle: CGFloat(Double.pi), duration: 1)))
-            spinnyNode.run(SKAction.sequence([SKAction.wait(forDuration: 0.5),
-                                              SKAction.fadeOut(withDuration: 0.5),
-                                              SKAction.removeFromParent()]))
-        }
-    }
+    var gameTimer: Timer!
+    
+    var possibleAliens = [ "alien", "alien2", "alien3" ]
     
     override func didMove(to view: SKView) {
-        self.setUpScene()
+        
+        // Initialize particle emmitter
+        starfield = SKEmitterNode(fileNamed: "Starfield")
+        
+        starfield.position = CGPoint(x: 0, y: 1472)
+        starfield.advanceSimulationTime(10)
+        
+        // Add it to scene
+        self.addChild(starfield)
+        
+        // Make it go behind everything
+        starfield.zPosition = -1
+        
+        // Now do the player
+        player = SKSpriteNode(imageNamed: "shuttle")
+        
+        player.position = CGPoint(x: self.frame.size.width / 2 , y: player.size.height / 2 + 20)
+        
+        self.addChild(player)
+        
+        // Eliminate gravity
+        self.physicsWorld.gravity = CGVector(dx: 0, dy: 0)
+        
+        // Make scene detect physics
+        self.physicsWorld.contactDelegate = self
+        
+        // Do score label
+        scoreLabel = SKLabelNode(text: "Score: 0")
+        
+        scoreLabel.position = CGPoint(x: 100, y: self.frame.size.height - 60)
+        scoreLabel.fontName = "HelveticaNeue-Bold" // Get names at iosfonts.com
+        scoreLabel.fontSize = 36
+        scoreLabel.fontColor = UIColor.white
+        
+        // Set score to 0
+        score = 0
+        
+        self.addChild(scoreLabel)
+        
+        // Set up timer
+        // #selector defines a method to be called later; the passed method should be marked @objc like below
+        gameTimer = Timer.scheduledTimer(timeInterval: 0.75, target: self, selector: #selector(addAlien), userInfo: nil, repeats: true)
+        
     }
 
-    func makeSpinny(at pos: CGPoint, color: SKColor) {
-        if let spinny = self.spinnyNode?.copy() as! SKShapeNode? {
-            spinny.position = pos
-            spinny.strokeColor = color
-            self.addChild(spinny)
-        }
+    @objc func addAlien() {
+        // Call a shared instance (singleton) randomizer, then return a shuffled instance of the possibleAliens array
+        possibleAliens = GKRandomSource.sharedRandom().arrayByShufflingObjects(in: possibleAliens) as! [String]
+        
+        let alien = SKSpriteNode(imageNamed: possibleAliens[0])
+        
+        // Generate a random distribution and grab an int from it as our random position
+        let randomAlienPosition = GKRandomDistribution(lowestValue: 0, highestValue: 414)
+        let position = CGFloat(randomAlienPosition.nextInt())
+        
+        // Give it to our alien
+        alien.position = CGPoint(x: position, y: self.frame.size.height + alien.size.height)
+        
+        // Give it a dynamic (physics-responding) physics body
+        alien.physicsBody = SKPhysicsBody(rectangleOf: alien.size)
+        alien.physicsBody?.isDynamic = true
     }
     
     override func update(_ currentTime: TimeInterval) {
         // Called before each frame is rendered
     }
 }
-
-#if os(iOS) || os(tvOS)
-// Touch-based event handling
-extension GameScene {
-
-    override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
-        if let label = self.label {
-            label.run(SKAction.init(named: "Pulse")!, withKey: "fadeInOut")
-        }
-        
-        for t in touches {
-            self.makeSpinny(at: t.location(in: self), color: SKColor.green)
-        }
-    }
-    
-    override func touchesMoved(_ touches: Set<UITouch>, with event: UIEvent?) {
-        for t in touches {
-            self.makeSpinny(at: t.location(in: self), color: SKColor.blue)
-        }
-    }
-    
-    override func touchesEnded(_ touches: Set<UITouch>, with event: UIEvent?) {
-        for t in touches {
-            self.makeSpinny(at: t.location(in: self), color: SKColor.red)
-        }
-    }
-    
-    override func touchesCancelled(_ touches: Set<UITouch>, with event: UIEvent?) {
-        for t in touches {
-            self.makeSpinny(at: t.location(in: self), color: SKColor.red)
-        }
-    }
-    
-   
-}
-#endif
-
-#if os(OSX)
-// Mouse-based event handling
-extension GameScene {
-
-    override func mouseDown(with event: NSEvent) {
-        if let label = self.label {
-            label.run(SKAction.init(named: "Pulse")!, withKey: "fadeInOut")
-        }
-        self.makeSpinny(at: event.location(in: self), color: SKColor.green)
-    }
-    
-    override func mouseDragged(with event: NSEvent) {
-        self.makeSpinny(at: event.location(in: self), color: SKColor.blue)
-    }
-    
-    override func mouseUp(with event: NSEvent) {
-        self.makeSpinny(at: event.location(in: self), color: SKColor.red)
-    }
-
-}
-#endif
-

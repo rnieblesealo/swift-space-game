@@ -10,30 +10,20 @@ import SpriteKit
 import GameplayKit
 
 class GameViewController: UIViewController {
-
-    override func viewDidLoad() {
+    
+    override func viewDidLoad(){
         super.viewDidLoad()
         
-        let scene = GameScene.newGameScene()
-
-        // Present the scene
-        let skView = self.view as! SKView
-        skView.presentScene(scene)
+        // Get the view as an SKView, make it fill the view, and present it
         
-        skView.ignoresSiblingOrder = true
-        skView.showsFPS = true
-        skView.showsNodeCount = true
-    }
-
-    override var supportedInterfaceOrientations: UIInterfaceOrientationMask {
-        if UIDevice.current.userInterfaceIdiom == .phone {
-            return .allButUpsideDown
-        } else {
-            return .all
+        if let view = self.view as! SKView? {
+            
+            let scene = GameScene(size: view.bounds.size)
+            
+            scene.scaleMode = .resizeFill;
+            
+            view.presentScene(scene);
+            
         }
-    }
-
-    override var prefersStatusBarHidden: Bool {
-        return true
     }
 }
